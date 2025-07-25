@@ -62,11 +62,11 @@ func newDelegateKeyMap() *delegateKeyMap {
 	return &delegateKeyMap{
 		choose: key.NewBinding(
 			key.WithKeys("enter"),
-			key.WithHelp("enter", "paly song"),
+			key.WithHelp("enter", "play song"),
 		),
 		togglePlay: key.NewBinding(
 			key.WithKeys("space"),
-			key.WithHelp("space", "toggle play/pause"),
+			key.WithHelp("space", "play/pause"),
 		),
 		play: key.NewBinding(
 			key.WithKeys("p"),

@@ -27,6 +27,7 @@ var (
 	ErrPlayerNotReady = errors.New("player is not ready")
 )
 
+// NOTE: This PlayManager is not thread-safe.
 type PlayManager struct {
 	playlist []*Song
 	// currentIndex is the index of the currently playing song in the playlist.
@@ -111,7 +112,7 @@ func (pm *PlayManager) GetCurrentSong() (*Song, error) {
 	switch pm.playMode {
 	case PlayModeShuffle:
 		if len(pm.shuffleList) != len(pm.playlist) {
-			pm.initShuffleList()
+			pm.initShuffleList(pm.currentIndex)
 		}
 		return pm.playlist[pm.shuffleList[pm.currentIndex]], nil
 	default:
@@ -205,13 +206,7 @@ func (pm *PlayManager) PlaySong(song *Song) error {
 		return ErrPlayerNotReady
 	}
 
-	songPlaylistIndex := -1
-	for i, s := range pm.playlist {
-		if s.Path == song.Path {
-			songPlaylistIndex = i
-			break
-		}
-	}
+	songPlaylistIndex := pm.findSongIndex(song)
 
 	if songPlaylistIndex > 0 {
 		pm.currentIndex = songPlaylistIndex
@@ -222,6 +217,37 @@ func (pm *PlayManager) PlaySong(song *Song) error {
 	}
 
 	return nil
+}
+
+func (pm *PlayManager) findSongIndex(song *Song) int {
+	originalIndex := -1
+
+	for i, s := range pm.playlist {
+		if s.Path == song.Path {
+			originalIndex = i
+			break
+		}
+	}
+
+	if originalIndex == -1 {
+		return -1
+	}
+
+	if pm.playMode != PlayModeShuffle {
+		return originalIndex
+	}
+
+	if len(pm.shuffleList) != len(pm.playlist) {
+		pm.initShuffleList(pm.currentIndex)
+	}
+
+	for i, j := range pm.shuffleList {
+		if j == originalIndex {
+			return i
+		}
+	}
+
+	return -1
 }
 
 func (pm *PlayManager) PlaySongByIndex(index int) error {
@@ -243,15 +269,21 @@ func (pm *PlayManager) SetPlayMode(mode string) error {
 
 	switch mode {
 	case PlayModeNormal, "":
-		pm.currentIndex = 0
+		if pm.playMode == PlayModeShuffle {
+			pm.currentIndex = pm.shuffleList[pm.currentIndex]
+		}
+
 		pm.playMode = mode
 		return nil
 	case PlayModeRepeat:
+		if pm.playMode == PlayModeShuffle {
+			pm.currentIndex = pm.shuffleList[pm.currentIndex]
+		}
 		pm.playMode = mode
 		return nil
 	case PlayModeShuffle:
 		pm.playMode = mode
-		pm.initShuffleList()
+		pm.initShuffleList(pm.currentIndex)
 		pm.currentIndex = 0
 		return nil
 	default:
@@ -259,35 +291,37 @@ func (pm *PlayManager) SetPlayMode(mode string) error {
 	}
 }
 
-func (pm *PlayManager) initShuffleList() {
+func (pm *PlayManager) initShuffleList(firstItemIndex int) {
 	pm.shuffleList = make([]int, len(pm.playlist))
 	for i := range pm.shuffleList {
 		pm.shuffleList[i] = i
 	}
 
-	shuffle(pm.shuffleList)
+	shuffle(pm.shuffleList, firstItemIndex)
 }
 
-func shuffle(slice []int) []int {
-	for i := len(slice) - 1; i > 0; i-- {
-		j := rand.Intn(i + 1)
+func shuffle(slice []int, firstItemIndex int) {
+	slice[0], slice[firstItemIndex] = slice[firstItemIndex], slice[0]
+
+	for i := len(slice) - 1; i > 1; i-- {
+		j := rand.Intn(i) + 1
+
 		slice[i], slice[j] = slice[j], slice[i]
 	}
-	return slice
 }
 
 func (pm *PlayManager) ResetShuffleList() {
 	if pm.playMode != PlayModeShuffle {
 		return
 	}
-	pm.initShuffleList()
+	pm.initShuffleList(pm.currentIndex)
 	pm.currentIndex = 0
 }
 
 func (pm *PlayManager) PlayList() []*Song {
 	if pm.playMode == PlayModeShuffle {
 		if len(pm.shuffleList) != len(pm.playlist) {
-			pm.initShuffleList()
+			pm.initShuffleList(pm.currentIndex)
 		}
 		shuffledPlaylist := make([]*Song, len(pm.playlist))
 		for i, idx := range pm.shuffleList {
