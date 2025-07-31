@@ -301,10 +301,30 @@ func (pm *PlayManager) initShuffleList(firstItemIndex int) {
 }
 
 func shuffle(slice []int, firstItemIndex int) {
-	slice[0], slice[firstItemIndex] = slice[firstItemIndex], slice[0]
+	sliceLen := len(slice)
 
-	for i := len(slice) - 1; i > 1; i-- {
-		j := rand.Intn(i) + 1
+	// Handle empty or single-element slices: nothing to shuffle.
+	if sliceLen < 1 {
+		return
+	}
+
+	isFirstItemIndexValid := firstItemIndex >= 0 && firstItemIndex < sliceLen
+	if isFirstItemIndexValid {
+		slice[0], slice[firstItemIndex] = slice[firstItemIndex], slice[0]
+	}
+
+	startIndexForShuffle := 0
+
+	if isFirstItemIndexValid {
+		startIndexForShuffle = 1
+	}
+
+	for i := sliceLen - 1; i > startIndexForShuffle; i-- {
+		// Generate a random index 'j' within the current unshuffled range: [startIndexForShuffle, i].
+		// rand.Intn(n) generates values from 0 to n-1
+		// So, rand.Intn(i - startIndexForShuffle + 1) generates values from 0 to (i - startIndexForShuffle).
+		// Adding startIndexForShuffle shifts this range to [startIndexForShuffle, i].
+		j := rand.Intn(sliceLen-startIndexForShuffle-1) + startIndexForShuffle
 
 		slice[i], slice[j] = slice[j], slice[i]
 	}
