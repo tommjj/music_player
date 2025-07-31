@@ -5,6 +5,7 @@ package player
 import (
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/faiface/beep"
@@ -26,6 +27,8 @@ type Player struct {
 	resampler  *beep.Resampler
 	volume     *effects.Volume
 	filepath   string
+
+	mx sync.Mutex
 
 	onComplete func()
 
@@ -50,6 +53,9 @@ func (p *Player) SetOnComplete(callback func()) {
 // Play starts playing the audio file specified by filename.
 // It initializes the audio system, opens the file, and starts playback.
 func (p *Player) Play(filename string) error {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+
 	if p.streamer != nil {
 		p.Close() // Close any existing stream before playing a new one
 	}
@@ -79,6 +85,9 @@ func (p *Player) Play(filename string) error {
 }
 
 func (p *Player) Pause() {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+
 	if p.ctrl == nil {
 		return
 	}
@@ -90,6 +99,9 @@ func (p *Player) Pause() {
 }
 
 func (p *Player) Resume() {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+
 	if p.ctrl == nil {
 		return
 	}
@@ -100,6 +112,9 @@ func (p *Player) Resume() {
 }
 
 func (p *Player) IsPaused() bool {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+
 	if p.ctrl == nil {
 		return true // If no control, consider it paused
 	}
@@ -107,6 +122,9 @@ func (p *Player) IsPaused() bool {
 }
 
 func (p *Player) VolumeUp() {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+
 	p.volumeValue += 0.1
 
 	if p.volume == nil {
@@ -120,6 +138,9 @@ func (p *Player) VolumeUp() {
 }
 
 func (p *Player) VolumeDown() {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+
 	p.volumeValue -= 0.1
 
 	if p.volume == nil {
@@ -132,6 +153,9 @@ func (p *Player) VolumeDown() {
 }
 
 func (p *Player) SetVolume(volume float64) {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+
 	p.volumeValue = volume
 
 	if p.volume == nil {
@@ -144,6 +168,9 @@ func (p *Player) SetVolume(volume float64) {
 }
 
 func (p *Player) ToPosition(pos time.Duration) error {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+
 	if p.streamer == nil {
 		return os.ErrInvalid // No file loaded
 	}
@@ -164,6 +191,9 @@ func (p *Player) ToPosition(pos time.Duration) error {
 
 // ToPositionByOffset moves the playback position by a specified offset.
 func (p *Player) ToPositionByOffset(offset time.Duration) error {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+
 	if p.streamer == nil {
 		return os.ErrInvalid // No file loaded
 	}
@@ -231,6 +261,9 @@ type Info struct {
 // Info returns the current playback information.
 // It includes the file path, current position, total length, volume, speed, and paused state.
 func (p *Player) Info() *Info {
+	p.mx.Lock()
+	defer p.mx.Unlock()
+
 	speaker.Lock()
 	defer speaker.Unlock()
 	if p.streamer == nil {
