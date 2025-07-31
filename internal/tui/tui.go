@@ -21,7 +21,8 @@ type Model struct {
 
 	list list.Model
 
-	progress progress.Model
+	progress       progress.Model
+	progressPaused progress.Model
 }
 
 func (m Model) Init() tea.Cmd {
@@ -84,6 +85,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		h, v := docStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v-4)
 		m.progress.Width = msg.Width - h
+		m.progressPaused.Width = msg.Width - h
 	case TickMsg:
 		return m, tickEverySecond()
 	}
@@ -113,6 +115,13 @@ func (m Model) View() string {
 		title = currentSong.Title
 	}
 
+	var progress string
+	if info.Paused {
+		progress = m.progressPaused.ViewAs(float64(info.Current) / float64(info.Length))
+	} else {
+		progress = m.progress.ViewAs(float64(info.Current) / float64(info.Length))
+	}
+
 	return lipgloss.JoinVertical(lipgloss.Left,
 		docStyle.Render(m.list.View()),
 		docStyle.Render(
@@ -121,7 +130,7 @@ func (m Model) View() string {
 				"",
 				fmt.Sprintf("[%v] %v", m.playmanager.PlayMode(), title),
 				"",
-				m.progress.ViewAs(float64(info.Current)/float64(info.Length)),
+				progress,
 			),
 		),
 	)
@@ -143,10 +152,13 @@ func NewModel(pm *playmanager.PlayManager) Model {
 
 	prs := progress.New(progress.WithScaledGradient("#2f0bfdff", "#2f0bfdff"))
 	prs.ShowPercentage = false
+	prsP := progress.New(progress.WithScaledGradient("#b9b9b9ff", "#b9b9b9ff"))
+	prsP.ShowPercentage = false
 
 	return Model{
-		playmanager: pm,
-		list:        list,
-		progress:    prs,
+		playmanager:    pm,
+		list:           list,
+		progress:       prs,
+		progressPaused: prsP,
 	}
 }
